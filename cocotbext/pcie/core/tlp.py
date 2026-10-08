@@ -466,6 +466,13 @@ class Tlp:
     def is_posted(self):
         return tlp_type_fc_type_mapping[self.fmt_type] == FcType.P
 
+    def is_read_write(self):
+        if self.fmt_type in {TlpType.MEM_READ, TlpType.MEM_READ_64, TlpType.MEM_READ_LOCKED,
+                TlpType.MEM_READ_LOCKED_64, TlpType.MEM_WRITE, TlpType.MEM_WRITE_64}:
+            return True
+        else:
+            return False
+
     def is_nonposted(self):
         return tlp_type_fc_type_mapping[self.fmt_type] == FcType.NP
 

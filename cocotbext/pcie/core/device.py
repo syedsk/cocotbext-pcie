@@ -25,9 +25,9 @@ THE SOFTWARE.
 import logging
 
 from .endpoint import Endpoint
-from .port import SimPort
 from .tlp import Tlp, TlpType
 from .utils import PcieId
+from .cosim_port import CosimPort
 
 
 class Device:
@@ -44,7 +44,8 @@ class Device:
         self.functions = []
         self.upstream_port = None
 
-        self.set_port(SimPort(fc_init=[[64, 1024, 64, 64, 0, 0]]*8))
+        #self.set_port(SimPort(fc_init=[[64, 1024, 64, 64, 0, 0]]*8))
+        self.set_port(CosimPort())
 
         if eps:
             try:
@@ -106,8 +107,8 @@ class Device:
         port.rx_handler = self.upstream_recv
         self.upstream_port = port
 
-    def connect(self, port):
-        self.upstream_port.connect(port)
+    def start_cosim_server(self, port):
+        self.upstream_port.start_cosim_server(port)
 
     async def upstream_recv(self, tlp):
         self.log.debug("Got downstream TLP: %r", tlp)
@@ -129,6 +130,12 @@ class Device:
         if tlp.fmt_type in {TlpType.CFG_READ_0, TlpType.CFG_WRITE_0}:
             # Config type 0
             self.log.warning("Function not found: failed to route config type 0 TLP: %r", tlp)
+            data = 0xffffffff
+            cpl = Tlp.create_completion_data_for_tlp(tlp, PcieId(1, 0, 0))
+            cpl.set_data(struct.pack('<L', data))
+            cpl.byte_count = 4
+            await self.upstream_send(cpl)
+            return
         elif tlp.fmt_type in {TlpType.CFG_READ_1, TlpType.CFG_WRITE_1}:
             # Config type 1
             self.log.warning("Malformed TLP: endpoint received config type 1 TLP: %r", tlp)
